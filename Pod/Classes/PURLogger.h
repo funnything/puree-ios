@@ -26,6 +26,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (PURLogStore *)logStore;
 - (NSDate *)currentDate;
 
+- (void)flush;
+
 @end
 
 NS_ASSUME_NONNULL_END
