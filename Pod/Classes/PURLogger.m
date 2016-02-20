@@ -249,4 +249,11 @@
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
+- (void)flush
+{
+    for (PUROutput *output in [self.outputs allValues]) {
+        [output flush];
+    }
+}
+
 @end

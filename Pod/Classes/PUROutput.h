@@ -22,6 +22,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)resume NS_REQUIRES_SUPER;
 - (void)suspend NS_REQUIRES_SUPER;
 - (void)emitLog:(PURLog *)log;
+- (void)flush;
 
 @property (nonatomic, readonly) NSString *identifier;
 @property (nonatomic, readonly) NSString *tagPattern;
