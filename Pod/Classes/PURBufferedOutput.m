@@ -40,6 +40,7 @@ NSUInteger PURBufferedOutputDefaultMaxRetryCount = 3;
 @property (nonatomic) CFAbsoluteTime recentFlushTime;
 @property (nonatomic) NSTimer *timer;
 @property (nonatomic) NSOperationQueue *writeChunkQueue;
+@property (nonatomic) NSLock *lock;
 
 @end
 
@@ -81,6 +82,8 @@ NSUInteger PURBufferedOutputDefaultMaxRetryCount = 3;
     NSOperationQueue *writeChunkQueue = [[NSOperationQueue alloc] init];
     writeChunkQueue.maxConcurrentOperationCount = 1;
     self.writeChunkQueue = writeChunkQueue;
+    
+    self.lock = [[NSLock alloc] init];
 }
 
 - (void)start
@@ -119,19 +122,27 @@ NSUInteger PURBufferedOutputDefaultMaxRetryCount = 3;
 
 - (void)reloadLogStore
 {
+    [self.lock lock];
+    
     [self.buffer removeAllObjects];
 
     [self.logStore retrieveLogsForPattern:self.tagPattern
                                    output:self
                                completion:^(NSArray<PURLog *> *logs){
                                    [self.buffer addObjectsFromArray:logs];
+                                   
+                                   [self.lock unlock];
                                }];
 }
 
 - (void)emitLog:(PURLog *)log
 {
+    [self.lock lock];
+    
     [self.buffer addObject:log];
     [self.logStore addLog:log fromOutput:self];
+    
+    [self.lock unlock];
 
     if ([self.buffer count] >= self.logLimit) {
         [self flush];
@@ -141,8 +152,11 @@ NSUInteger PURBufferedOutputDefaultMaxRetryCount = 3;
 - (void)flush
 {
     self.recentFlushTime = CFAbsoluteTimeGetCurrent();
+    
+    [self.lock lock];
 
     if ([self.buffer count] == 0) {
+        [self.lock unlock];
         return;
     }
 
@@ -150,6 +164,8 @@ NSUInteger PURBufferedOutputDefaultMaxRetryCount = 3;
     NSIndexSet *indexSet = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, logCount)];
     NSArray<PURLog *> *flushLogs = [self.buffer objectsAtIndexes:indexSet];
     [self.buffer removeObjectsAtIndexes:indexSet];
+    
+    [self.lock unlock];
 
     PURBufferedOutputChunk *chunk = [[PURBufferedOutputChunk alloc] initWithLogs:flushLogs];
     [self.writeChunkQueue addOperationWithBlock:^{
